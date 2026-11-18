@@ -57,7 +57,7 @@ Agent -> FastAPI gateway -> configurable regex / embedding detectors -> Ollama o
 这台机器目前已安装 `qwen3:8b` 和 `deepseek-r1:8b`。若想直接复用现有模型，把 `.env` 中的 `UPSTREAM_MODEL` 改为 `qwen3:8b`，就不必再下载 `llama3.2`；本机当前演示网关也是这样启动的。
 
 ```bash
-cd /Users/ran/Desktop/paper/OSFD
+cd ~/Prompt-Sentinel
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
