@@ -130,21 +130,6 @@ HF_HUB_OFFLINE=1 python scripts/evaluate.py samples/smoke.jsonl --repeat 3
 
 `samples/smoke.jsonl` 是少量**人工编写的烟雾测试样本**，不是公开基准或论文数据。评估脚本对三种策略输出同一批样本上的混淆矩阵、准确率相关指标和 P50/P95 检测延迟；计时前会预热语义模型，但不测模型生成耗时。样本太少，指标不能外推到真实 Agent 或企业流量。课程汇报建议展示架构图、正常/攻击两条请求路径、工具调用拒绝、审计看板，以及扩充样本后的误报和漏报分析。
 
-## 发布到 GitHub
-
-1. 在 GitHub 创建名为 `prompt-sentinel` 的空仓库，把上方 **GitHub About** 文案填入仓库简介。
-2. 确认 `.env`、`data/`、`.venv/` 不在提交列表；本项目的 `.gitignore` 已排除它们。
-3. 本地执行以下命令，把 `<your-account>` 换成自己的用户名：
-
-```bash
-git init
-git add .
-git commit -m "Initial Prompt-Sentinel prototype"
-git branch -M main
-git remote add origin https://github.com/<your-account>/prompt-sentinel.git
-git push -u origin main
-```
-
 
 ## 配置与限制
 
