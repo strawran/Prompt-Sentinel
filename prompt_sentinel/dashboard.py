@@ -71,6 +71,10 @@ with audit_tab:
         columns[0].metric("允许", counts.get("allow", 0))
         columns[1].metric("拦截", counts.get("block", 0))
         columns[2].metric("检测错误", counts.get("error", 0))
+        tool_counts = result.get("tool_counts", {})
+        tool_columns = st.columns(2)
+        tool_columns[0].metric("工具允许", tool_counts.get("allow", 0))
+        tool_columns[1].metric("工具拒绝", tool_counts.get("deny", 0))
         events = result["events"]
         if events:
             frame = pd.DataFrame(events)
@@ -85,10 +89,16 @@ with audit_tab:
             st.dataframe(
                 frame[[
                     "created_at", "request_id", "source", "role", "action",
-                    "engines", "rule_ids", "similarity", "char_count"
+                    "strategy", "checked_engines", "engines", "rule_ids", "similarity", "char_count"
                 ]],
                 use_container_width=True,
                 hide_index=True,
             )
         else:
             st.info("暂无审计记录")
+        tool_events = result.get("tool_events", [])
+        st.subheader("工具调用决策")
+        if tool_events:
+            st.dataframe(pd.DataFrame(tool_events), use_container_width=True, hide_index=True)
+        else:
+            st.info("暂无工具调用")

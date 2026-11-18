@@ -1,4 +1,5 @@
 detector:
+  strategy: semantic_first  # semantic_first, regex_first, or both
   max_chars: 4000
   protected_roles: [user, tool]
   semantic:
@@ -21,3 +22,5 @@ detector:
       pattern: '(?i)(?:reveal|print|send|泄露|发送).{0,60}(?:api[_ -]?key|secret|token|system prompt|密钥|系统提示词)'
     - id: instruction_override_zh
       pattern: '忽略.{0,12}(?:之前|以上|先前).{0,12}(?:指令|规则|提示词)'
+tool_policy:
+  allowed_tools: [read_demo_page]

@@ -22,6 +22,7 @@ class Rule:
 @dataclass(frozen=True)
 class Settings:
     rules: tuple[Rule, ...]
+    strategy: str
     semantic_enabled: bool
     semantic_model: str
     semantic_threshold: float
@@ -33,6 +34,7 @@ class Settings:
     provider: str
     upstream_model: str
     ollama_base_url: str
+    allowed_tools: frozenset[str]
 
 
 def load_settings(path: str | Path | None = None) -> Settings:
@@ -40,6 +42,9 @@ def load_settings(path: str | Path | None = None) -> Settings:
     with config_path.open("r", encoding="utf-8") as stream:
         data = yaml.safe_load(stream) or {}
     detector = data["detector"]
+    strategy = str(detector.get("strategy", "semantic_first"))
+    if strategy not in {"semantic_first", "regex_first", "both"}:
+        raise ValueError("detector.strategy must be semantic_first, regex_first, or both")
     semantic = detector["semantic"]
     rules = tuple(Rule(str(item["id"]), str(item["pattern"])) for item in detector["rules"])
     if len({rule.id for rule in rules}) != len(rules):
@@ -63,6 +68,7 @@ def load_settings(path: str | Path | None = None) -> Settings:
         audit_db = PROJECT_ROOT / audit_db
     return Settings(
         rules=rules,
+        strategy=strategy,
         semantic_enabled=bool(semantic["enabled"]),
         semantic_model=str(semantic["model"]),
         semantic_threshold=threshold,
@@ -74,4 +80,5 @@ def load_settings(path: str | Path | None = None) -> Settings:
         provider=provider,
         upstream_model=os.getenv("UPSTREAM_MODEL", "llama3.2" if provider == "ollama" else "deepseek-chat"),
         ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
+        allowed_tools=frozenset(str(name) for name in data.get("tool_policy", {}).get("allowed_tools", [])),
     )

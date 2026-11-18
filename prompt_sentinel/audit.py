@@ -26,7 +26,24 @@ class AuditStore:
                     engines TEXT NOT NULL,
                     rule_ids TEXT NOT NULL,
                     similarity REAL,
-                    char_count INTEGER NOT NULL
+                    char_count INTEGER NOT NULL,
+                    strategy TEXT NOT NULL DEFAULT 'both',
+                    checked_engines TEXT NOT NULL DEFAULT '[]'
+                )"""
+            )
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(events)")}
+            if "strategy" not in columns:
+                db.execute("ALTER TABLE events ADD COLUMN strategy TEXT NOT NULL DEFAULT 'both'")
+            if "checked_engines" not in columns:
+                db.execute("ALTER TABLE events ADD COLUMN checked_engines TEXT NOT NULL DEFAULT '[]'")
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS tool_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                    request_id TEXT NOT NULL,
+                    tool_name TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    reason TEXT NOT NULL
                 )"""
             )
 
@@ -39,8 +56,9 @@ class AuditStore:
         with self._connect() as db:
             db.execute(
                 """INSERT INTO events
-                (request_id, source, provider, role, action, engines, rule_ids, similarity, char_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (request_id, source, provider, role, action, engines, rule_ids,
+                 similarity, char_count, strategy, checked_engines)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     request_id,
                     source,
@@ -51,6 +69,8 @@ class AuditStore:
                     json.dumps(verdict.rule_ids),
                     verdict.similarity,
                     verdict.char_count,
+                    verdict.strategy,
+                    json.dumps(verdict.checked_engines),
                 ),
             )
 
@@ -64,6 +84,7 @@ class AuditStore:
                 **dict(row),
                 "engines": json.loads(row["engines"]),
                 "rule_ids": json.loads(row["rule_ids"]),
+                "checked_engines": json.loads(row["checked_engines"]),
             }
             for row in rows
         ]
@@ -71,4 +92,21 @@ class AuditStore:
     def counts(self) -> dict[str, int]:
         with self._connect() as db:
             rows = db.execute("SELECT action, COUNT(*) AS n FROM events GROUP BY action").fetchall()
+        return {row["action"]: row["n"] for row in rows}
+
+    def add_tool(self, request_id: str, tool_name: str, action: str, reason: str) -> None:
+        with self._connect() as db:
+            db.execute(
+                "INSERT INTO tool_events (request_id, tool_name, action, reason) VALUES (?, ?, ?, ?)",
+                (request_id, tool_name, action, reason),
+            )
+
+    def recent_tools(self, limit: int = 100) -> list[dict]:
+        with self._connect() as db:
+            rows = db.execute("SELECT * FROM tool_events ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(row) for row in rows]
+
+    def tool_counts(self) -> dict[str, int]:
+        with self._connect() as db:
+            rows = db.execute("SELECT action, COUNT(*) AS n FROM tool_events GROUP BY action").fetchall()
         return {row["action"]: row["n"] for row in rows}

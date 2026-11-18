@@ -9,6 +9,7 @@ import httpx
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from .audit import AuditStore
 from .config import Settings, load_settings
@@ -52,7 +53,7 @@ def create_app(
                 request_id,
                 source,
                 settings.provider,
-                Verdict("error", role, ("detector_unavailable",), (), None, len(text)),
+                Verdict("error", role, ("detector_unavailable",), (), None, len(text), settings.strategy),
             )
             raise HTTPException(503, str(exc)) from exc
         audit.add(request_id, source, settings.provider, verdict)
@@ -83,7 +84,12 @@ def create_app(
     ) -> dict:
         if settings.audit_token and x_audit_token != settings.audit_token:
             raise HTTPException(401, "Audit token required")
-        return {"counts": audit.counts(), "events": audit.recent(limit)}
+        return {
+            "counts": audit.counts(),
+            "events": audit.recent(limit),
+            "tool_counts": audit.tool_counts(),
+            "tool_events": audit.recent_tools(limit),
+        }
 
     @app.post("/v1/chat/completions")
     async def chat(payload: dict) -> JSONResponse:
@@ -101,7 +107,9 @@ def create_app(
             role = message["role"]
             if role in settings.protected_roles:
                 text = _text_content(message.get("content"))
-                verdict = inspect_and_record(text, role, "gateway", request_id)
+                verdict = await run_in_threadpool(
+                    inspect_and_record, text, role, "gateway", request_id
+                )
                 if verdict.action == "block":
                     return JSONResponse(
                         status_code=403,
